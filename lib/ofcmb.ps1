@@ -4,6 +4,7 @@
 # 輸入：文字用 WM_CHAR 直接送進欄位，不經鍵盤，不受注音輸入法影響
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, UIAutomationClient, UIAutomationTypes
+. (Join-Path $PSScriptRoot 'remote-ui.ps1')   # 工具列按鈕位置；並把座標改成實體像素
 if (-not ('OfcW32' -as [type])) {
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -64,17 +65,25 @@ function Find-OfcForm([string]$Cls) {
     foreach ($e in (Get-UiDescendants $OfcTop)) { if ($e.Current.ClassName -eq $Cls) { return $e } }
     $null
 }
-# 左側選單：排班申請在選單面板頂端往下 60px，加班申請 250px
+# 左側選單是畫出來的按鈕（沒有把手、不能用鍵盤選），只能點。
+# 位置是 100% 縮放下相對於選單面板左上角的像素；舊程式不支援 DPI，Windows 放大時整個視窗等比例放大，
+# 所以用「選單面板實際寬度 ÷ 72」換算（換電腦、換縮放比例也準）。點完會確認畫面真的打開了。
 $script:OfcMenu = @{ '排班申請' = @{ Cls = 'Tfm_OFCMB_1_1'; Dy = 60 }; '加班申請' = @{ Cls = 'Tfm_OFCMB_1_5'; Dy = 250 } }
+function Get-OfcNav {
+    foreach ($w in (Get-UiDescendants $OfcTop | Select-Object -First 12)) { $i = Get-UiInfo $w; if ($i.Cls -eq 'TPanel' -and $i.W -lt 200 -and $i.Hh -gt 300) { return $i } }
+    $null
+}
+function Get-OfcScale { $n = Get-OfcNav; if ($n -and $n.W -gt 0) { $n.W / 72 } else { 1 } }
 function Open-OfcMenu([string]$Name) {
     $m = $OfcMenu[$Name]
     Set-OfcFront
-    $nav = $null
-    foreach ($w in (Get-UiDescendants $OfcTop | Select-Object -First 12)) { $i = Get-UiInfo $w; if ($i.Cls -eq 'TPanel' -and $i.W -lt 100 -and $i.Hh -gt 300) { $nav = $i; break } }
-    $top = if ($nav) { $nav.T } else { 80 }
-    Invoke-OfcClick 37 ($top + $m.Dy); Start-Sleep -Milliseconds 900
+    $nav = Get-OfcNav
+    $s = Get-OfcScale
+    $x = if ($nav) { [int]($nav.L + 37 * $s) } else { 37 }
+    $y = if ($nav) { [int]($nav.T + $m.Dy * $s) } else { 80 + $m.Dy }
+    Invoke-OfcClick $x $y; Start-Sleep -Milliseconds 900
     $f = Find-OfcForm $m.Cls
-    if (-not $f) { throw "無法開啟「$Name」畫面" }
+    if (-not $f) { throw "無法開啟「$Name」畫面（左側選單沒點到，請手動點一次「$Name」再重試）" }
     $f
 }
 # 程式跳出的訊息框（Delphi TMessageForm / Windows #32770）
@@ -103,7 +112,8 @@ function Read-OfcSchedule {
     $roc = [int]$ym.Split('/')[0]; $mon = [int]$ym.Split('/')[1]; $year = $roc + 1911
     $days = [DateTime]::DaysInMonth($year, $mon)
     $grid = $kids | Where-Object { $_.Cls -eq 'TDBGrid' } | Sort-Object { $_.W * $_.Hh } -Descending | Select-Object -First 1
-    $row1Y = $grid.T + 30; $codeX = $grid.L + 124
+    $sc = Get-OfcScale
+    $row1Y = [int]($grid.T + 30 * $sc); $codeX = [int]($grid.L + 124 * $sc)   # 第一列「班別代號」格（100% 時：表頭下 30px、左邊 124px）
     $clip = $null; try { $clip = [System.Windows.Forms.Clipboard]::GetText() } catch {}
     Invoke-OfcClick $codeX $row1Y; Start-Sleep -Milliseconds 400
     Invoke-OfcClick $codeX $row1Y -Double; Start-Sleep -Milliseconds 300
@@ -117,6 +127,11 @@ function Read-OfcSchedule {
     }
     Send-OfcKeys '{ESC}'; Start-Sleep -Milliseconds 150; Send-OfcKeys '{ESC}'   # 離開編輯，不改班表
     if ($clip) { try { [System.Windows.Forms.Clipboard]::SetText($clip) } catch {} }
+    # 確認讀到的是班別代碼（點錯格會讀到別的欄位或空白）
+    $good = @($rows | Where-Object { $_.Code -match '^\d{3,4}$' }).Count
+    if ($good -lt [math]::Ceiling($days * 0.8)) {
+        throw "讀到的班表不像班別代碼（$good/$days 天是數字代碼），可能點錯格子。第一格讀到「$($rows[0].Code)」。"
+    }
     @{ Year = $year; Month = $mon; RocYear = $roc; Rows = $rows }
 }
 
@@ -131,9 +146,14 @@ function Get-OtControls($Form) {
        Hours = ($k | Where-Object { $_.Cls -eq 'TEdit' -and $_.W -lt 100 -and $m.Count -ge 2 -and [math]::Abs($_.T - $m[1].T) -lt 6 -and $_.L -gt $m[1].L } | Select-Object -First 1)
        Bar = ($k | Where-Object { $_.Cls -eq 'TToolBar' } | Select-Object -First 1) }
 }
+# 工具列按鈕是 Delphi 畫的（不能用鍵盤、送訊息也按不到），只能點；
+# 位置向工具列查：每顆按鈕在 Windows 工具列裡是一格寬的空位（中間夾著窄的分隔），依序是 新增、查詢、修改、存檔、放棄
 function Invoke-OtBar($C, [string]$Name) {
     $idx = @{ '新增' = 0; '查詢' = 1; '修改' = 2; '存檔' = 3; '放棄' = 4 }[$Name]
-    Invoke-OfcClick ($C.Bar.L + 26 + 48 * $idx) $C.Bar.Y
+    $slots = @()
+    try { $slots = @([RemoteUi]::ToolbarButtons($C.Bar.H) | Where-Object { ($_.R - $_.L) -ge 16 -and ($_.B - $_.T) -ge 16 } | Sort-Object L) } catch {}
+    if ($slots.Count -gt $idx) { Invoke-OfcClick $slots[$idx].X $slots[$idx].Y }
+    else { Invoke-OfcClick ($C.Bar.L + [int]((26 + 48 * $idx) * (Get-OfcScale))) $C.Bar.Y }   # 查不到時退回估算
 }
 function Set-OtTime($O, [string]$Hhmm) {
     Invoke-OfcClick $O.X $O.Y; Start-Sleep -Milliseconds 150
@@ -144,7 +164,7 @@ function Set-OtTime($O, [string]$Hhmm) {
 function Set-OtDate($O, [datetime]$Dt) {
     $p = (Format-Roc $Dt).Split('/')
     for ($try = 0; $try -lt 2; $try++) {
-        Invoke-OfcClick ($O.L + 40) $O.Y; Start-Sleep -Milliseconds 150
+        Invoke-OfcClick ([int]($O.L + $O.W * 0.3)) $O.Y; Start-Sleep -Milliseconds 150   # 點進日期欄（點哪一段都可以）
         Send-OfcKeys '{LEFT}{LEFT}{LEFT}'; Start-Sleep -Milliseconds 150   # 移到「年」
         [OfcW32]::Chars($O.H, $p[0]); Start-Sleep -Milliseconds 200
         Send-OfcKeys '{RIGHT}'; Start-Sleep -Milliseconds 150
@@ -165,12 +185,19 @@ function Show-OtCurrentPeriod($C) {
         foreach ($w in $AE::RootElement.FindAll('Children', $OfcPidCond)) { if ($w.Current.Name -eq '查詢日期區間') { $dlg = $w } }
     }
     if (-not $dlg) { return $false }
-    $kids = Get-UiDescendants $dlg | ForEach-Object { Get-UiInfo $_ }
-    $cur = $kids | Where-Object { $_.Name -eq '當期' } | Select-Object -First 1
-    if ($cur) { Invoke-OfcClick $cur.X $cur.Y; Start-Sleep -Milliseconds 200 }
-    $ok = $kids | Where-Object { $_.Name -match '確定' } | Select-Object -First 1
-    if ($ok) { Invoke-OfcClick $ok.X $ok.Y } else { [OfcW32]::SetForegroundWindow([IntPtr]$dlg.Current.NativeWindowHandle) | Out-Null; Send-OfcKeys '{ENTER}' }
-    Start-Sleep -Milliseconds 1500
+    # 預設就選好「當期」、焦點在「確定」，直接按 Enter
+    $dh = [IntPtr]$dlg.Current.NativeWindowHandle
+    [OfcW32]::SetForegroundWindow($dh) | Out-Null; Start-Sleep -Milliseconds 200
+    Send-OfcKeys '{ENTER}'; Start-Sleep -Milliseconds 800
+    $still = $false; foreach ($w in $AE::RootElement.FindAll('Children', $OfcPidCond)) { if ($w.Current.Name -eq '查詢日期區間') { $still = $true } }
+    if ($still) {   # 備援：點有名字的按鈕（位置向系統查）
+        $kids = Get-UiDescendants $dlg | ForEach-Object { Get-UiInfo $_ }
+        $cur = $kids | Where-Object { $_.Name -eq '當期' } | Select-Object -First 1
+        if ($cur) { Invoke-OfcClick $cur.X $cur.Y; Start-Sleep -Milliseconds 200 }
+        $ok = $kids | Where-Object { $_.Name -match '確定' } | Select-Object -First 1
+        if ($ok) { Invoke-OfcClick $ok.X $ok.Y }
+    }
+    Start-Sleep -Milliseconds 1200
     $true
 }
 function Read-OtFields($C) {

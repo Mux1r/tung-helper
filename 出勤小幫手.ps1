@@ -6,7 +6,7 @@
 #>
 $ErrorActionPreference = 'Stop'
 $script:Dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$script:AppVersion = '1.2.0'
+$script:AppVersion = '1.3.0'
 
 . (Join-Path $Dir 'ui\fluent.ps1')
 . (Join-Path $Dir 'lib\shift-rules.ps1')
