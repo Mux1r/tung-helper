@@ -1,4 +1,4 @@
-# tung-helper（出勤小幫手）
+﻿# tung-helper（住醫小幫手）
 
 操作醫院「出勤系統」(OFCMB.EXE) 的 Windows 小工具集。介面比照 Windows 11 設定（Fluent 風格，跟著系統深淺色與強調色），外觀與班別規則沿用 [tungwifi](https://github.com/Mux1r/tungwifi)。
 
@@ -40,7 +40,7 @@ powershell -ExecutionPolicy Bypass -File .\make-shortcut.ps1 -Desktop
 之後：
 
 1. 開啟並登入出勤系統，視窗保持最大化。
-2. 點兩下「出勤小幫手」捷徑。捷徑透過 `conhost --headless` 啟動，不會多開 PowerShell 視窗。
+2. 點兩下「住醫小幫手」捷徑。捷徑透過 `conhost --headless` 啟動，不會多開 PowerShell 視窗。
 3. 執行中請勿動滑鼠鍵盤；暫停、停止會在目前這一筆做完後生效。
 
 需求：Windows 10/11、Windows PowerShell 5.1（內建）。不需要另外安裝任何東西，也不需要 AI。
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File .\update.ps1 -Install    # 每天自動
 ## 多人共用
 
 - 程式資料夾不寫入任何個人資料：班表、設定只放在記憶體，關閉視窗後全部清除。
-- 背景工作的進度檔放在 `%TEMP%\出勤小幫手-<PID>`，關閉時刪除。
+- 背景工作的進度檔放在 `%TEMP%\住醫小幫手-<PID>`，關閉時刪除。
 - 班表只有按「匯出」時才存到使用者自己的「下載」資料夾。
 - 程式操作的是出勤系統**目前登入的帳號**，換人使用時出勤系統也要換人登入。
 
@@ -92,7 +92,8 @@ powershell -ExecutionPolicy Bypass -File .\update.ps1 -Install    # 每天自動
 
 | 路徑 | 用途 |
 | --- | --- |
-| `出勤小幫手.ps1` | 主視窗：左側選單、背景工作管理 |
+| `住醫小幫手.ps1` | 主視窗：左側選單、背景工作管理 |
+| `出勤小幫手.ps1` | 舊名稱相容：舊捷徑會執行它，自動把捷徑換成「住醫小幫手」再開啟（程式原名「出勤小幫手」） |
 | `ui\fluent.ps1` | Fluent 外觀元件與色票 |
 | `lib\ofcmb.ps1` | 操作出勤系統的共用函式 |
 | `lib\shift-rules.ps1` | 班別代碼與值班規則 |

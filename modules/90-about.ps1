@@ -100,17 +100,17 @@ $btnChkUpd.Add_Click({
     $btnChkUpd.Enabled = $true
 })
 
-# 更新／退版後版本真的換了，就開一份新的出勤小幫手再關掉自己，新介面馬上生效
+# 更新／退版後版本真的換了，就開一份新的住醫小幫手再關掉自己，新介面馬上生效
 function Restart-IfChanged([string]$OldSha) {
     if ((Get-VersionLine).Sha -eq $OldSha) { return $false }
     if (Test-TaskRunning) { $lblUpdMsg.Text = '完成，重開程式後生效'; $lblUpdMsg.ForeColor = $C_GOOD; return $true }
-    $lnk = @((Join-Path $Dir '出勤小幫手.lnk'), (Join-Path ([Environment]::GetFolderPath('Desktop')) '出勤小幫手.lnk')) |
+    $lnk = @((Join-Path $Dir '住醫小幫手.lnk'), (Join-Path ([Environment]::GetFolderPath('Desktop')) '住醫小幫手.lnk')) |
            Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
     try {
         if ($lnk) { Start-Process -FilePath $lnk -ErrorAction Stop }
         else {
             Start-Process "$env:SystemRoot\System32\conhost.exe" -ErrorAction Stop `
-                -ArgumentList "--headless powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $Dir '出勤小幫手.ps1')`""
+                -ArgumentList "--headless powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $Dir '住醫小幫手.ps1')`""
         }
     } catch {   # 開不起來就不關自己，免得什麼都不見
         $lblUpdMsg.Text = '完成，重開程式才會看到新版'; $lblUpdMsg.ForeColor = $C_GOOD; $btnChkUpd.Enabled = $true
@@ -121,7 +121,7 @@ function Restart-IfChanged([string]$OldSha) {
 }
 
 $btnApply.Add_Click({
-    if (Test-TaskRunning) { [System.Windows.Forms.MessageBox]::Show("「$($Task.Name)」還在執行，請等它結束再更新。", '出勤小幫手') | Out-Null; return }
+    if (Test-TaskRunning) { [System.Windows.Forms.MessageBox]::Show("「$($Task.Name)」還在執行，請等它結束再更新。", '住醫小幫手') | Out-Null; return }
     $btnApply.Enabled = $false; $btnChkUpd.Enabled = $false; $btnRollbk.Enabled = $false
     $lblUpdMsg.Text = '更新中...'; $lblUpdMsg.ForeColor = $C_MUTE
     $old = (Get-VersionLine).Sha

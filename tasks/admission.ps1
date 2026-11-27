@@ -1,6 +1,6 @@
 ﻿#Requires -Version 5.1
 <#
-  背景工作：把出勤小幫手「入院記錄」頁的內容貼進住院醫囑系統的入院記錄（不按暫存／完成，交給使用者確認）
+  背景工作：把住醫小幫手「入院記錄」頁的內容貼進住院醫囑系統的入院記錄（不按暫存／完成，交給使用者確認）
     powershell -STA -ExecutionPolicy Bypass -File tasks\admission.ps1 -DataFile <json> [-WorkDir <dir>]
 
   json：{ "CC": "...", "PI": "...", "PH": "...", "PSH": "...", "ROS": "...", "PE": "...", "DX": "...", "PLAN": "...",
@@ -22,8 +22,8 @@
 #>
 param(
     [Parameter(Mandatory)][string]$DataFile,
-    [string]$WorkDir = (Join-Path $env:TEMP '出勤小幫手-手動'),
-    [string]$SettingsB64 = ''   # 出勤小幫手統一會傳，這支用不到
+    [string]$WorkDir = (Join-Path $env:TEMP '住醫小幫手-手動'),
+    [string]$SettingsB64 = ''   # 住醫小幫手統一會傳，這支用不到
 )
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot

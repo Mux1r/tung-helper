@@ -1,20 +1,20 @@
 ﻿#Requires -Version 5.1
 <#
   背景工作：讀班表、找值班日、填「加班申請」並存檔
-  由出勤小幫手呼叫；也可以單獨執行：
+  由住醫小幫手呼叫；也可以單獨執行：
     powershell -STA -ExecutionPolicy Bypass -File tasks\overtime.ps1 -Action Schedule
     powershell -STA -ExecutionPolicy Bypass -File tasks\overtime.ps1 -Action Preview
     powershell -STA -ExecutionPolicy Bypass -File tasks\overtime.ps1 -Action Apply
 
-  程式資料夾裡不寫任何檔案（多人共用）：班表只回報給出勤小幫手，由使用者按「匯出」才存到「下載」資料夾。
-  進度寫到 <WorkDir>\run.log（暫存資料夾，出勤小幫手關閉時刪掉），一行一筆「TYPE<TAB>內容」：
+  程式資料夾裡不寫任何檔案（多人共用）：班表只回報給住醫小幫手，由使用者按「匯出」才存到「下載」資料夾。
+  進度寫到 <WorkDir>\run.log（暫存資料夾，住醫小幫手關閉時刪掉），一行一筆「TYPE<TAB>內容」：
     LOG 訊息 / STATE running|paused|done|stopped|error / SCHEDULE 班表 json / PLAN json / ITEM 序號<TAB>狀態<TAB>說明
   控制檔 <WorkDir>\control.txt：run / pause / stop（每筆之間檢查，不會停在一筆的中間）
 #>
 param(
     [ValidateSet('Schedule', 'Preview', 'Apply')][string]$Action = 'Preview',
-    [string]$WorkDir = (Join-Path $env:TEMP '出勤小幫手-手動'),
-    [string]$SettingsB64 = '',   # 設定（JSON 再 Base64），由出勤小幫手傳入；沒給就用預設
+    [string]$WorkDir = (Join-Path $env:TEMP '住醫小幫手-手動'),
+    [string]$SettingsB64 = '',   # 設定（JSON 再 Base64），由住醫小幫手傳入；沒給就用預設
     [switch]$NoSave   # 測試用：填好第一筆就停，不存檔
 )
 $ErrorActionPreference = 'Stop'

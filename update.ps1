@@ -61,10 +61,10 @@ function Copy-Program([string]$From, [string]$To) {
     }
 }
 
-# 值班加班申請正在跑就別換檔：換到一半的腳本可能讓這筆申請出錯
+# 值班加班申請、入院記錄貼上正在跑就別換檔：換到一半的腳本可能出錯
 function Test-TaskBusy {
     [bool](Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -match 'tasks\\overtime\.ps1' })
+        Where-Object { $_.CommandLine -match 'tasks\\(overtime|admission)\.ps1' })
 }
 function Wait-TaskIdle {
     for ($i = 0; $i -lt 20 -and (Test-TaskBusy); $i++) { Start-Sleep -Seconds 30 }   # 最多等 10 分鐘
@@ -126,11 +126,21 @@ try {
     Set-Content $VersionFile @($sha, "$(Get-Date -Format 'yyyy-MM-dd') $msg") -Encoding UTF8
     Remove-Item $SkipFile -ErrorAction SilentlyContinue
     Log "更新到 $($sha.Substring(0, 7))：$msg"
+    # 改名相容：舊的「出勤小幫手」捷徑換成「住醫小幫手」（桌面上原本有的才放到桌面）
+    try {
+        $desk = [Environment]::GetFolderPath('Desktop')
+        $oldF = Join-Path $Dir '出勤小幫手.lnk'; $oldD = Join-Path $desk '出勤小幫手.lnk'
+        if ((Test-Path $oldF) -or (Test-Path $oldD)) {
+            if (Test-Path $oldD) { & "$Dir\make-shortcut.ps1" -Desktop | Out-Null } else { & "$Dir\make-shortcut.ps1" | Out-Null }
+            Remove-Item $oldF, $oldD -Force -ErrorAction SilentlyContinue
+            Log '捷徑已改名為「住醫小幫手」'
+        }
+    } catch {}
     # 已經存在的捷徑換成新圖示（只改現有的）
     if (Test-Path "$Dir\app.ico") {
         try {
             $ws = New-Object -ComObject WScript.Shell
-            foreach ($lnk in "$Dir\出勤小幫手.lnk", (Join-Path ([Environment]::GetFolderPath('Desktop')) '出勤小幫手.lnk')) {
+            foreach ($lnk in "$Dir\住醫小幫手.lnk", (Join-Path ([Environment]::GetFolderPath('Desktop')) '住醫小幫手.lnk')) {
                 if (Test-Path $lnk) { $sc = $ws.CreateShortcut($lnk); $sc.IconLocation = "$Dir\app.ico,0"; $sc.Save() }
             }
         } catch {}
