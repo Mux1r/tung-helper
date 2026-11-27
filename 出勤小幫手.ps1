@@ -6,7 +6,7 @@
 #>
 $ErrorActionPreference = 'Stop'
 $script:Dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$script:AppVersion = '1.1.0'
+$script:AppVersion = '1.2.0'
 
 . (Join-Path $Dir 'ui\fluent.ps1')
 . (Join-Path $Dir 'lib\shift-rules.ps1')
@@ -117,7 +117,27 @@ $logo = New-Object Fluent.Logo
 Set-Box $logo 18 16 28 28
 $form.Controls.Add($logo)
 $null = New-Lbl $form '出勤小幫手' 52 20 140 24 $F_H $C_INK
-$null = New-Lbl $form "v$AppVersion" 22 670 170 20 $F_Cap $C_MUTE
+$script:lblVer = New-Lbl $form "v$AppVersion" 22 670 170 20 $F_Cap $C_MUTE
+
+# 跑一支腳本並等它結束，等的時候視窗照樣能動（不開任何主控台視窗）
+function Invoke-ScriptUI([string]$File, [string]$ArgLine = '', [int]$MaxSec = 300) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -NonInteractive -File `"$File`" $ArgLine"
+    $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $t0 = Get-Date
+    while (-not $p.HasExited -and ((Get-Date) - $t0).TotalSeconds -lt $MaxSec) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 150 }
+    $p.HasExited
+}
+# 背景工作（要回傳資料的，例如查 GitHub），等的時候視窗照樣能動
+function Wait-JobUI($Job, [int]$MaxSec = 20) {
+    $t0 = Get-Date
+    while ($Job.State -eq 'Running' -and ((Get-Date) - $t0).TotalSeconds -lt $MaxSec) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 150 }
+    $out = if ($Job.State -eq 'Completed') { Receive-Job $Job } else { $null }
+    Remove-Job $Job -Force -ErrorAction SilentlyContinue
+    $out
+}
 
 $script:stack = New-Card $form $NavW 0 760 720
 $stack.Radius = 8; $stack.Fill = [Fluent.Theme]::Stack

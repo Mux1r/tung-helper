@@ -1,5 +1,7 @@
 # 個人資料不進 GitHub
 data/
+# 更新功能的版本、備份、紀錄（每台電腦自己的）
+update/
 *.csv
 *.log
 *.png

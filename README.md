@@ -27,6 +27,23 @@ powershell -ExecutionPolicy Bypass -File .\make-shortcut.ps1 -Desktop
 
 需求：Windows 10/11、Windows PowerShell 5.1（內建）。不需要另外安裝任何東西，也不需要 AI。
 
+## 更新
+
+「關於與更新」頁（做法比照 tungwifi）：
+
+- **檢查更新**：列出 GitHub 上比本機新的每一筆改動；開啟程式時也會在背景查一次，有新版會在選單上加個點。
+- **立即更新**：下載最新版，只覆蓋程式檔；新版只要有一支腳本語法錯誤就整批不裝。更新前會先備份，裝完自動重開程式。
+- **還原上一版**：退回更新前的版本，且這一版不會再被自動裝回來。
+- **每天自動更新**：開關打開會建立排程 `tung-helper-AutoUpdate`，每天 09:00 檢查並安裝（電腦沒開會補做）；值班加班申請進行中會等它做完。
+
+版本、備份、更新紀錄放在 `update\`，不進 GitHub。也可以直接執行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\update.ps1 -Apply      # 立即更新
+powershell -ExecutionPolicy Bypass -File .\update.ps1 -Rollback   # 還原上一版
+powershell -ExecutionPolicy Bypass -File .\update.ps1 -Install    # 每天自動更新（-Uninstall 移除）
+```
+
 ## 多人共用
 
 - 程式資料夾不寫入任何個人資料：班表、設定只放在記憶體，關閉視窗後全部清除。
@@ -51,6 +68,7 @@ powershell -ExecutionPolicy Bypass -File .\make-shortcut.ps1 -Desktop
 | `tasks\overtime.ps1` | 背景工作：讀班表、值班加班申請 |
 | `modules\*.ps1` | 各頁面（檔名數字決定選單順序） |
 | `make-shortcut.ps1` | 建立捷徑 |
+| `update.ps1` | 從 GitHub 更新、還原上一版、每天自動更新排程 |
 
 ## 新增功能
 

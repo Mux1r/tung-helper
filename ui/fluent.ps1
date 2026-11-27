@@ -261,6 +261,7 @@ $script:Icon = @{
     Home = G 0xE80F; History = G 0xE81C; Setting = G 0xE713; Info = G 0xE946; Calendar = G 0xE787; Clock = G 0xE823
     Play = G 0xE768; Pause = G 0xE769; Stop = G 0xE71A; Search = G 0xE721; Refresh = G 0xE72C; Download = G 0xE896
     Folder = G 0xE838; Save = G 0xE74E; Clear = G 0xE894; List = G 0xEA37; Eye = G 0xE7B3; Work = G 0xE821; Moon = G 0xE708
+    Undo = G 0xE7A7; Sync = G 0xE895; Globe = G 0xE774
 }
 
 # ── UI 輔助 ──
