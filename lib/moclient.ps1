@@ -189,6 +189,7 @@ function Get-AdmBoxRect([string]$Key) { [MoW32]::Rect($AdmSec[$Key].Box) }
 # 舊程式不支援 DPI，Windows 放大時整個視窗等比例放大，所以用「GroupBox 實際寬度 ÷ 設計寬度」換算。
 $script:AdmButtons = @{
     NurseVitals = @{ Key = 'PE';  DesignW = 665; X = 315;   Y = 8; Popup = '生命徵象' }       # 護理評估（執行時被程式移到標題文字後面，實測）
+    DifTub      = @{ Key = 'PE';  DesignW = 665; X = 511;   Y = 8; Popup = '困難插管' }       # 困難插管評估（sbDifTub：Left 280, Width 89；整排同樣右移 186.5）
     LabResults  = @{ Key = 'LAB'; DesignW = 669; X = 384.5; Y = 9; Popup = '重要檢驗資料' }   # 近期檢驗結果（sbLabRpt：Left 313, Width 143）
     Reports     = @{ Key = 'LAB'; DesignW = 669; X = 536.5; Y = 9; Popup = '檢查報告' }       # 近期檢查報告（sbExmRpt：Left 465, Width 143）
 }

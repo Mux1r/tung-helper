@@ -131,6 +131,24 @@ try {
             $msg += $(if (Test-MoPopupOpen $pop) { '生命徵象視窗沒關' } else { '已帶入生命徵象' })
         } else { $msg += '找不到「護理評估」按鈕，請手動帶入生命徵象' }
     }
+    if ($d.DifficultIntubation) {
+        # 困難插管評估：焦點預設在「不符合困難插管」→ 空白鍵勾選 → Shift+Tab 兩次到確定 → 空白鍵。
+        # 已經勾過的話不能再按空白鍵（會取消勾選）。結果存在系統裡，不會出現在 PE 文字中；按確定後要等幾秒存檔
+        $pop = Invoke-AdmButton 'DifTub'
+        if ($pop) {
+            $cb = Get-MoDescendants $pop.El | Where-Object { $_.Current.ClassName -eq 'TCheckBox' -and $_.Current.Name -eq '不符合困難插管' } | Select-Object -First 1
+            $cbh = if ($cb) { [IntPtr]$cb.Current.NativeWindowHandle } else { [IntPtr]::Zero }
+            $isChecked = { if ($cbh -ne [IntPtr]::Zero) { [int][MoW32]::SendMessage($cbh, 0xF0, [IntPtr]::Zero, [IntPtr]::Zero) } else { -1 } }
+            if ((& $isChecked) -eq 0) { Send-MoPopupKeys $pop ' ' }
+            if ((& $isChecked) -ne 1) { $msg += '困難插管：勾不到「不符合困難插管」，請手動處理'; [void](Invoke-MoPopupButton $pop '取消') }
+            else {
+                Send-MoPopupKeys $pop '+{TAB 2}'; Send-MoPopupKeys $pop ' '
+                for ($w = 0; $w -lt 32 -and (Test-MoPopupOpen $pop); $w++) { Start-Sleep -Milliseconds 250 }
+                if (Test-MoPopupOpen $pop) { [void](Invoke-MoPopupButton $pop '確定'); for ($w = 0; $w -lt 32 -and (Test-MoPopupOpen $pop); $w++) { Start-Sleep -Milliseconds 250 } }
+                $msg += $(if (Test-MoPopupOpen $pop) { '困難插管視窗沒關，請手動處理' } else { '困難插管：不符合' })
+            }
+        } else { $msg += '找不到「困難插管評估」按鈕，請手動處理' }
+    }
     if ($Txt.PE) {
         $raw = Get-AdmRaw PE
         # 空白的「Vital signs: Body Temperature:   ℃」那一行（溫度沒填的是範本原本那行）起到最後，換成 UI 內容
@@ -138,7 +156,7 @@ try {
         if ($m.Success) { Set-AdmAll PE ($raw.Substring(0, $m.Index) + (ConvertTo-AdmText $Txt.PE)) -Raw; $msg += '已從空白 v/s 起覆蓋' }
         else { Add-AdmEnd PE $Txt.PE -NewLine; $msg += '找不到空白 v/s 那行，內容接在最後，請檢查' }
     }
-    $peFail = ($msg -join ' ') -match '找不到|沒關'
+    $peFail = ($msg -join ' ') -match '找不到|沒關|勾不到'
     Step 6 $(if ($peFail) { 'fail' } elseif ($msg) { 'ok' } else { 'skip' }) ($msg -join '；')
 
     # 7 營養風險

@@ -65,6 +65,7 @@ $script:ckVitals = New-AdmCheck 'PE：護理評估帶入生命徵象' 250 36
 $script:ckNrs    = New-AdmCheck '營養風險：五項勾「否」' 480 36
 $script:ckLab    = New-AdmCheck '近期檢驗結果（兩個月內）' 18 58
 $script:ckRpt    = New-AdmCheck '近期檢查報告（一個月內）' 250 58
+$script:ckDif    = New-AdmCheck 'PE：困難插管評估「不符合」' 480 58
 
 # 操作＋進度
 $cardAdmRun = New-Card $pgAdm 24 438 690 242
@@ -186,14 +187,14 @@ $btnAdmRun.Add_Click({
     $pt = Get-AdmSelectedPatient
     if (-not $pt) { $lblAdmMsg.Text = '住院醫囑系統沒有開在病人的「入院記錄」'; $lblAdmMsg.ForeColor = $C_WARN; return }
     $filled = @($AdmFields.Keys | Where-Object { $AdmData[$_].Trim() })
-    if (-not $filled.Count -and -not ($ckDrug.Checked -or $ckVitals.Checked -or $ckNrs.Checked -or $ckLab.Checked -or $ckRpt.Checked)) { $lblAdmMsg.Text = '沒有內容要貼'; return }
+    if (-not $filled.Count -and -not ($ckDrug.Checked -or $ckVitals.Checked -or $ckNrs.Checked -or $ckLab.Checked -or $ckRpt.Checked -or $ckDif.Checked)) { $lblAdmMsg.Text = '沒有內容要貼'; return }
     $msg = "要貼到這位病人的入院記錄嗎？`n`n病人：$($pt.Label)`n有內容的欄位：" + $(if ($filled.Count) { ($filled | ForEach-Object { $AdmFields[$_].Name }) -join '、' } else { '（無）' }) +
            "`n`n執行中請勿動滑鼠鍵盤。不會按暫存或完成。"
     if ([System.Windows.Forms.MessageBox]::Show($msg, '貼到入院記錄', 'YesNo', 'Question') -ne 'Yes') { return }
     $data = [ordered]@{ TargetHwnd = $pt.H; Chart = $pt.Chart }
     foreach ($k in $AdmFields.Keys) { $data[$k] = $AdmData[$k] }
     $data.DrugImport = $ckDrug.Checked; $data.NurseVitals = $ckVitals.Checked; $data.Nutrition = $ckNrs.Checked
-    $data.LabImport = $ckLab.Checked; $data.ReportImport = $ckRpt.Checked
+    $data.LabImport = $ckLab.Checked; $data.ReportImport = $ckRpt.Checked; $data.DifficultIntubation = $ckDif.Checked
     $file = Join-Path $WorkDir ('admission-{0}.json' -f [guid]::NewGuid().ToString('N'))
     [IO.File]::WriteAllText($file, (ConvertTo-Json ([pscustomobject]$data)), (New-Object Text.UTF8Encoding $false))
     $lvAdm.Items.Clear()
