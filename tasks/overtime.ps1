@@ -105,7 +105,11 @@ try {
             while (($ctl = Get-Control) -eq 'pause') { Start-Sleep -Milliseconds 300 }
             if ($ctl -ne 'stop') { Emit 'STATE' 'running'; Log '繼續'; Connect-Ofcmb; Initialize-Form; $curRound = 0 }   # 暫停期間可能動過畫面，整張表重填
         }
-        if ($ctl -eq 'stop') { Log '已停止'; for ($k = $n; $k -lt $items.Count; $k++) { Emit 'ITEM' "$k`tskip`t未執行" }; Emit 'STATE' 'stopped'; return }
+        if ($ctl -eq 'stop') {
+            Log '已停止'; for ($k = $n; $k -lt $items.Count; $k++) { Emit 'ITEM' "$k`tskip`t未執行" }
+            if ($ok -gt 0 -and (Show-OtCurrentPeriod $c)) { Log '已在出勤系統查詢「當期」，請人工核對已送出的部分。' }
+            Emit 'STATE' 'stopped'; return
+        }
 
         Emit 'ITEM' "$n`trunning`t填寫中"
         Set-OfcFront
@@ -136,7 +140,11 @@ try {
         $ok++
         Log "✓ $label 已送出"; Emit 'ITEM' "$n`tok`t已送出$(if ($msg) { "（$msg）" })"
     }
-    Log "完成：送出 $ok 筆，失敗 $fail 筆。請到「已申請資料」核對。"
+    Log "完成：送出 $ok 筆，失敗 $fail 筆。"
+    if ($ok -gt 0) {
+        if (Show-OtCurrentPeriod $c) { Log '已在出勤系統查詢「當期」，請在「已申請資料」人工核對（有誤可按「取消申請」）。' }
+        else { Log '請在出勤系統按「查詢」→「當期」→「確定」，到「已申請資料」人工核對。' }
+    }
     Emit 'STATE' 'done'
 } catch {
     Log "✗ 錯誤：$($_.Exception.Message)"

@@ -155,6 +155,24 @@ function Set-OtDate($O, [datetime]$Dt) {
     }
     $false
 }
+# 按「查詢」→ 查詢日期區間選「當期」→「確定」，讓「已申請資料」列出這期的申請給人工核對
+function Show-OtCurrentPeriod($C) {
+    Set-OfcFront
+    Invoke-OtBar $C '查詢'
+    $dlg = $null
+    for ($i = 0; $i -lt 20 -and -not $dlg; $i++) {
+        Start-Sleep -Milliseconds 250
+        foreach ($w in $AE::RootElement.FindAll('Children', $OfcPidCond)) { if ($w.Current.Name -eq '查詢日期區間') { $dlg = $w } }
+    }
+    if (-not $dlg) { return $false }
+    $kids = Get-UiDescendants $dlg | ForEach-Object { Get-UiInfo $_ }
+    $cur = $kids | Where-Object { $_.Name -eq '當期' } | Select-Object -First 1
+    if ($cur) { Invoke-OfcClick $cur.X $cur.Y; Start-Sleep -Milliseconds 200 }
+    $ok = $kids | Where-Object { $_.Name -match '確定' } | Select-Object -First 1
+    if ($ok) { Invoke-OfcClick $ok.X $ok.Y } else { [OfcW32]::SetForegroundWindow([IntPtr]$dlg.Current.NativeWindowHandle) | Out-Null; Send-OfcKeys '{ENTER}' }
+    Start-Sleep -Milliseconds 1500
+    $true
+}
 function Read-OtFields($C) {
     $hrs = ''; if ($C.Hours) { $hrs = [OfcW32]::Text($C.Hours.H) }
     [ordered]@{ 日期 = [OfcW32]::Text($C.Date.H); 起 = [OfcW32]::Text($C.Start.H); 迄 = [OfcW32]::Text($C.End.H)
