@@ -65,8 +65,9 @@ try {
     Emit 'PLAN' (ConvertTo-Json -Compress -InputObject $Steps)
     Emit 'STATE' 'running'
 
-    Connect-MoAdmission
-    Log '入院記錄已找到，開始貼上（執行中請勿動滑鼠鍵盤）'
+    Connect-MoAdmission ([int64]$d.TargetHwnd) ([string]$d.Chart)
+    $pt = Get-MoPatient $MoTop
+    Log "入院記錄已找到（病歷號 $($pt.Chart)），開始貼上（執行中請勿動滑鼠鍵盤）"
     if (-not (Enter-AdmTop)) { throw '無法點進主訴欄位' }
 
     # 0 主訴

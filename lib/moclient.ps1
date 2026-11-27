@@ -58,16 +58,46 @@ function Get-MoDescendants($El) {
     $list
 }
 
-function Connect-MoAdmission {
+# 讀某個住院醫囑系統視窗目前的病人（病人基本資料第一列：病歷號、姓名）
+function Get-MoPatient($Win) {
+    $gb = Get-MoDescendants $Win | Where-Object { $_.Current.ClassName -eq 'TGroupBox' -and $_.Current.Name -eq '病人基本資料' } | Select-Object -First 1
+    if (-not $gb) { return @{ Chart = ''; Name = '' } }
+    $eds = @(); $wk = [System.Windows.Automation.TreeWalker]::RawViewWalker; $c = $wk.GetFirstChild($gb)
+    while ($c) { if ($c.Current.ClassName -eq 'TDBEdit') { $r = $c.Current.BoundingRectangle; $eds += [pscustomobject]@{ T = [int]$r.Y; L = [int]$r.X; V = $c.Current.Name } }; $c = $wk.GetNextSibling($c) }
+    $row = @($eds | Sort-Object T, L | Select-Object -First 2)
+    @{ Chart = $(if ($row.Count -gt 0) { $row[0].V } else { '' }); Name = $(if ($row.Count -gt 1) { $row[1].V } else { '' }) }
+}
+# 列出所有開在「入院記錄」的住院醫囑系統視窗（一個病人一個視窗，可能同時開好幾個）
+function Get-MoAdmissionWindows {
+    $list = @()
+    foreach ($p in @(Get-Process -Name moclient -ErrorAction SilentlyContinue)) {
+        $cond = New-Object System.Windows.Automation.PropertyCondition($MoAE::ProcessIdProperty, $p.Id)
+        foreach ($w in $MoAE::RootElement.FindAll('Children', $cond)) {
+            if ($w.Current.Name -notlike '*入院記錄*') { continue }
+            $pt = Get-MoPatient $w
+            $list += [pscustomobject]@{ H = [int64]$w.Current.NativeWindowHandle; Pid = $p.Id; Chart = $pt.Chart; Name = $pt.Name; Label = ('{0} {1}' -f $pt.Chart, $pt.Name).Trim() }
+        }
+    }
+    $list
+}
+# 連到入院記錄視窗。有指定 $Hwnd 就用那個，並確認病歷號沒變（避免貼錯病人）
+function Connect-MoAdmission([int64]$Hwnd = 0, [string]$Chart = '') {
     $procs = @(Get-Process -Name moclient -ErrorAction SilentlyContinue)
     if (-not $procs) { throw '找不到「住院醫囑系統」(MOCLIENT.EXE)。' }
     $script:MoTop = $null
-    foreach ($p in $procs) {   # 可能同時開了好幾個，找開著「入院記錄」的那個
+    foreach ($p in $procs) {
         $cond = New-Object System.Windows.Automation.PropertyCondition($MoAE::ProcessIdProperty, $p.Id)
-        foreach ($w in $MoAE::RootElement.FindAll('Children', $cond)) { if ($w.Current.Name -like '*入院記錄*') { $script:MoTop = $w; $script:MoPidCond = $cond } }
-        if ($MoTop) { break }
+        foreach ($w in $MoAE::RootElement.FindAll('Children', $cond)) {
+            if ($w.Current.Name -notlike '*入院記錄*') { continue }
+            if ($Hwnd -and [int64]$w.Current.NativeWindowHandle -ne $Hwnd) { continue }
+            if (-not $MoTop) { $script:MoTop = $w; $script:MoPidCond = $cond }
+        }
     }
-    if (-not $MoTop) { throw '住院醫囑系統沒有開在「入院記錄」畫面。' }
+    if (-not $MoTop) { throw $(if ($Hwnd) { '選的病人入院記錄視窗已經關掉或換畫面了，請重新整理病人清單。' } else { '住院醫囑系統沒有開在「入院記錄」畫面。' }) }
+    if ($Chart) {
+        $now = (Get-MoPatient $MoTop).Chart
+        if ($now -and $now -ne $Chart) { throw "這個視窗現在的病人（病歷號 $now）跟選的不一樣，已停止，避免貼錯病人。" }
+    }
     $script:MoTopH = [IntPtr]$MoTop.Current.NativeWindowHandle
     # 找每一段的 GroupBox 和裡面的 RichEdit
     $script:AdmSec = [ordered]@{}
