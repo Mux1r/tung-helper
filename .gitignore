@@ -1,0 +1,7 @@
+# 個人資料不進 GitHub
+data/
+*.csv
+*.log
+*.png
+# 捷徑含本機路徑，用 make-shortcut.ps1 在各自電腦上建立
+*.lnk
