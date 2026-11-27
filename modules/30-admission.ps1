@@ -6,13 +6,20 @@ $script:AdmFields = [ordered]@{
     CC   = @{ Name = '主訴';         Hint = '勾選 [v]patient，接在最後（換行）' }
     PI   = @{ Name = '現病史';       Hint = '接在最後' }
     PH   = @{ Name = '過去病史';     Hint = '插在最前面，後面換行（範本保留）' }
-    PSH  = @{ Name = '個人歷史';     Hint = '全選覆蓋（範本換成這裡的內容）' }
+    PSH  = @{ Name = '個人歷史';     Hint = '全選覆蓋。預設內容在 defaults\個人歷史.txt；清成空白就不貼' }
     ROS  = @{ Name = 'ROS';          Hint = '全選覆蓋' }
     PE   = @{ Name = 'PE';           Hint = '護理評估帶入生命徵象後，從空白 Vital signs 那行起覆蓋' }
     DX   = @{ Name = '疾病診斷';     Hint = '接在最後' }
     PLAN = @{ Name = '住院診療計畫'; Hint = '全選覆蓋' }
 }
-$script:AdmData = @{}; foreach ($k in $AdmFields.Keys) { $AdmData[$k] = '' }
+# 預設內容：defaults\<欄位名稱>.txt（例如 個人歷史.txt），每位新病人都從這裡開始；欄位清成空白就不貼
+$script:AdmDefaults = @{}
+foreach ($k in $AdmFields.Keys) {
+    $f = Join-Path $Dir ("defaults\{0}.txt" -f $AdmFields[$k].Name)
+    $AdmDefaults[$k] = if (Test-Path $f) { ([IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) -replace "`r?`n", "`r`n").TrimEnd("`r", "`n") } else { '' }
+}
+function Reset-AdmData { foreach ($k in $AdmFields.Keys) { $AdmData[$k] = $AdmDefaults[$k] } }
+$script:AdmData = @{}; Reset-AdmData
 $script:AdmCur = 'CC'
 
 # 內容卡：左邊欄位清單、右邊編輯框
@@ -101,12 +108,12 @@ function Update-AdmPatients {
 }
 function Get-AdmSelectedPatient { if ($AdmPatients.Count) { $AdmPatients[0] } else { $null } }
 $btnAdmPtRefresh.Add_Click({ Update-AdmPatients })
-# 下一位病人：清空欄位與進度、重新讀病人清單（勾選的自動帶入保留）
+# 下一位病人：欄位回到預設內容（個人歷史等）、清空進度、重新讀病人（勾選的自動帶入保留）
 $btnAdmNext.Add_Click({
-    foreach ($k in $AdmFields.Keys) { $AdmData[$k] = '' }
-    $txAdm.Text = ''; Update-AdmNavMarks; $lvAdm.Items.Clear()
+    Reset-AdmData
+    $txAdm.Text = $AdmData[$AdmCur]; Update-AdmNavMarks; $lvAdm.Items.Clear()   # 編輯框先換成新內容，切換欄位時才不會把舊內容存回去
     Select-AdmField 'CC'
-    $lblAdmMsg.Text = '已清空。在住院醫囑系統打開下一位病人的入院記錄，填好內容再按「貼到入院記錄」。'; $lblAdmMsg.ForeColor = $C_INK2
+    $lblAdmMsg.Text = '已清空（個人歷史回到預設）。在住院醫囑系統打開下一位病人的入院記錄，填好內容再按「貼到入院記錄」。'; $lblAdmMsg.ForeColor = $C_INK2
     Update-AdmPatients
 })
 
